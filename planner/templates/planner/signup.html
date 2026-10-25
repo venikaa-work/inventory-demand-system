@@ -1,0 +1,24 @@
+{% extends "planner/base.html" %}
+{% block title %}Create account · Calendra{% endblock %}
+{% block auth %}
+<section class="auth">
+  <div class="auth-copy">
+    <p class="eyebrow">For the project team</p>
+    <h1>Start a company workspace.</h1>
+    <p>After signup, load the demo retailer or upload your own sales file.</p>
+  </div>
+  <form class="card auth-card" method="post">
+    {% csrf_token %}
+    <h2>Create account</h2>
+    {% for field in form %}
+      <label>
+        <span>{{ field.label }}</span>
+        {{ field }}
+        {% if field.errors %}<em>{{ field.errors|striptags }}</em>{% endif %}
+      </label>
+    {% endfor %}
+    <button class="primary" type="submit">Create workspace</button>
+    <p class="muted">Already have a login? <a href="{% url 'login' %}">Sign in</a></p>
+  </form>
+</section>
+{% endblock %}

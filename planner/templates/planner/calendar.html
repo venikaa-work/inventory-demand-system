@@ -1,0 +1,52 @@
+{% extends "planner/base.html" %}
+{% block title %}Calendar · Calendra{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Business calendar</p>
+    <h1>Dates that change demand</h1>
+  </div>
+  <form method="post" action="{% url 'run_forecast' %}">
+    {% csrf_token %}
+    <button class="primary" type="submit">Rebuild forecast</button>
+  </form>
+</header>
+
+<section class="split">
+  <article class="card panel">
+    <div class="panel-head">
+      <h2>Coming events</h2>
+      <p>{{ payday_count }} salary days are also on the calendar, on the 1st of each month. They stay out of this list so the festivals stay visible.</p>
+    </div>
+    <ul class="event-list">
+      {% for event in events %}
+        <li>
+          <span class="chip {{ event.event_type }}">{{ event.get_event_type_display }}</span>
+          <div>
+            <strong>{{ event.name }}</strong>
+            <p>{{ event.start_date|date:"j M Y" }}{% if event.end_date != event.start_date %} – {{ event.end_date|date:"j M Y" }}{% endif %}{% if event.notes %} · {{ event.notes }}{% endif %}</p>
+          </div>
+        </li>
+      {% empty %}
+        <li>No events yet. Add one, or load the demo store.</li>
+      {% endfor %}
+    </ul>
+  </article>
+  <article class="card">
+    <h2>Add an event</h2>
+    <p class="lede">A new promotion or holiday does nothing until you rebuild the forecast.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        <label>
+          <span>{{ field.label }}</span>
+          {{ field }}
+          {% if field.errors %}<em>{{ field.errors|striptags }}</em>{% endif %}
+        </label>
+      {% endfor %}
+      <button class="secondary" type="submit">Save event</button>
+    </form>
+  </article>
+</section>
+{% endblock %}

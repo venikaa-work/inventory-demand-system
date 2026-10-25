@@ -1,0 +1,6 @@
+date,sku,name,quantity,category,unit_cost,lead_time_days,on_hand
+2026-10-01,RICE-5,Basmati rice 5kg,16,Staple,420,7,200
+2026-10-02,RICE-5,Basmati rice 5kg,18,Staple,420,7,200
+2026-10-01,TEA-250,Assam tea 250g,11,Grocery,95,6,80
+2026-10-02,TEA-250,Assam tea 250g,14,Grocery,95,6,80
+2026-10-01,HAMP-01,Diwali gift hamper,9,Festive,499,12,30

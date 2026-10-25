@@ -1,0 +1,74 @@
+{% extends "planner/base.html" %}
+{% load humanize %}
+{% block title %}Sales data · Calendra{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Sales history</p>
+    <h1>What the forecast is reading</h1>
+  </div>
+</header>
+
+<section class="stat-grid three">
+  <article class="card stat"><p>Products</p><strong>{{ product_count }}</strong></article>
+  <article class="card stat"><p>Daily sales rows</p><strong>{{ sale_count|intcomma }}</strong></article>
+  <article class="card stat">
+    <p>Last check</p>
+    <strong>{% if run %}{{ run.created_at|date:"j M, P" }}{% else %}Not run{% endif %}</strong>
+  </article>
+</section>
+
+<section class="split">
+  <article class="card">
+    <h2>Load the demo retailer</h2>
+    <p class="lede">Kaveri General Stores, Pune. Ten products, daily sales from January 2025, and an Indian business calendar through Diwali 2026. This replaces whatever is currently in the workspace.</p>
+    <form method="post" action="{% url 'load_demo' %}" onsubmit="return confirm('Replace this workspace with the Kaveri demo?');">
+      {% csrf_token %}
+      <button class="primary" type="submit">Load demo data</button>
+    </form>
+  </article>
+  <article class="card">
+    <h2>Or upload sales</h2>
+    <p class="lede">CSV or Excel. Required columns: <code>date</code>, <code>sku</code>, <code>quantity</code>. Optional: <code>name</code>, <code>category</code>, <code>unit_cost</code>, <code>lead_time_days</code>, <code>on_hand</code>.</p>
+    <form method="post" action="{% url 'upload' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% for field in form %}
+        <label>
+          <span>{{ field.label }}</span>
+          {{ field }}
+        </label>
+      {% endfor %}
+      <button class="secondary" type="submit">Upload file</button>
+    </form>
+    <p class="muted">A five-row template is in the project folder at <code>sample_data/sales_template.csv</code>.</p>
+  </article>
+</section>
+
+{% if run %}
+<section class="card panel">
+  <div class="panel-head">
+    <h2>Accuracy on the last {{ run.holdout_days }} days</h2>
+    <p>Both models were scored on days they had not been trained on. Event days are festivals, the week before a festival, the week after, promotions, and public holidays.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th></th><th>All days (MAPE)</th><th>Event days (MAPE)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Plain time series</td>
+          <td>{{ run.plain_mape|floatformat:1 }}%</td>
+          <td>{{ run.plain_event_mape|floatformat:1 }}%</td>
+        </tr>
+        <tr>
+          <td>Calendar-aware</td>
+          <td>{{ run.calendar_mape|floatformat:1 }}%</td>
+          <td>{{ run.calendar_event_mape|floatformat:1 }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

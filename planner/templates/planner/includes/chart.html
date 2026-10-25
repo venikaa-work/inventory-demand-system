@@ -1,0 +1,52 @@
+<div class="chart-wrap">
+  <canvas id="demand-chart" height="120"></canvas>
+</div>
+{{ chart|json_script:"chart-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const payload = JSON.parse(document.getElementById("chart-data").textContent);
+  const datasets = [];
+  if (Object.prototype.hasOwnProperty.call(payload, "actual")) {
+    datasets.push({
+      label: "Actual sales",
+      data: payload.actual,
+      borderColor: "#1a2332",
+      backgroundColor: "#1a2332",
+      tension: 0.25,
+      pointRadius: 0,
+      borderWidth: 2,
+      spanGaps: false,
+    });
+  }
+  datasets.push({
+    label: "Plain forecast",
+    data: payload.plain,
+    borderColor: "#b08968",
+    borderDash: [5, 4],
+    tension: 0.25,
+    pointRadius: 0,
+    borderWidth: 2,
+  });
+  datasets.push({
+    label: "Calendar forecast",
+    data: payload.calendar,
+    borderColor: "#0e6b5c",
+    tension: 0.25,
+    pointRadius: 0,
+    borderWidth: 2.5,
+  });
+  new Chart(document.getElementById("demand-chart"), {
+    type: "line",
+    data: { labels: payload.labels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { family: "Public Sans" } } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { family: "Public Sans" } } },
+        x: { ticks: { maxTicksLimit: 8, font: { family: "Public Sans" } } },
+      },
+    },
+  });
+</script>
