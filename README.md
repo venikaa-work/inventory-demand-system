@@ -1,4 +1,4 @@
-# Calendra
+# Inventory demand system
 
 Intelligent inventory demand planning for a college prototype. A retailer uploads daily sales, keeps a business calendar (festivals, promotions, paydays, public holidays), and gets two forecasts:
 
