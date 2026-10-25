@@ -34,11 +34,3 @@ On Windows, activate the environment with `.venv\Scripts\activate`.
 5. Calendar lists the business dates. Add one event, then rebuild the forecast.
 6. Sales data can reload the demo or accept a CSV / Excel file. A template is in `sample_data/sales_template.csv`.
 
-## Working together
-
-Clone the repository, create a branch for your change, and open a pull request. Avoid committing straight to `main` once both of you are pushing.
-
-```bash
-git checkout -b sejal/dashboard-copy
-git push -u origin sejal/dashboard-copy
-```
