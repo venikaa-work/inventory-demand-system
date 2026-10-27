@@ -14,6 +14,7 @@ from planner.forms import EventForm, SignUpForm, StockForm, UploadForm
 from planner.models import ForecastPoint, Product, Recommendation, Sale
 from planner.services.demo import load_demo
 from planner.services.forecast import rebuild_forecast, refresh_recommendation
+from planner.services.real_retail import load_real
 from planner.services.upload import import_sales
 
 
@@ -173,7 +174,7 @@ def _story_chart(product, run, today):
     end = today + timedelta(days=29)
     actuals = {
         sale.date: sale.quantity
-        for sale in product.sales.filter(date__gte=history_start, date__lt=today)
+        for sale in product.sales.filter(date__gte=history_start, date__lte=end)
     }
     forecasts = {
         point.date: point.calendar_qty
@@ -191,8 +192,11 @@ def _story_chart(product, run, today):
             chart["actual"].append(actuals.get(day))
             chart["forecast"].append(actuals.get(day) if day == today - timedelta(days=1) else None)
         else:
-            chart["actual"].append(None)
+            chart["actual"].append(actuals.get(day))
             chart["forecast"].append(round(forecasts[day]) if day in forecasts else None)
+            if day in actuals:
+                chart["actualLabel"] = "Bottles sold"
+                chart["forecastLabel"] = "Predicted"
         day += timedelta(days=1)
         index += 1
     return chart
@@ -200,9 +204,18 @@ def _story_chart(product, run, today):
 
 @login_required
 def dashboard(request):
+    return _render_forecast(request, "nara")
+
+
+@login_required
+def real_dashboard(request):
+    return _render_forecast(request, "real")
+
+
+def _render_forecast(request, catalogue):
     company = request.user.company
-    run = company.forecast_runs.first()
-    today = timezone.localdate()
+    run = company.forecast_runs.filter(catalogue=catalogue).first()
+    today = run.as_of if run and run.as_of else timezone.localdate()
     horizon = today + timedelta(days=30)
     chart = {
         "labels": [],
@@ -230,6 +243,9 @@ def dashboard(request):
         "plain_mape": None,
         "calendar_mape": None,
         "month_end": horizon - timedelta(days=1),
+        "shop": catalogue,
+        "currency": "$" if catalogue == "real" else "₹",
+        "date_fmt": "j M Y" if catalogue == "real" else "j M",
     }
     if not run:
         return render(request, "planner/dashboard.html", context)
@@ -254,7 +270,10 @@ def dashboard(request):
     history_start = today - timedelta(days=90)
     actuals = defaultdict(float)
     for sold_on, quantity in Sale.objects.filter(
-        product__company=company, date__gte=history_start, date__lt=today
+        product__company=company,
+        product__catalogue=catalogue,
+        date__gte=history_start,
+        date__lt=today,
     ).values_list("date", "quantity"):
         actuals[sold_on] += quantity
 
@@ -271,22 +290,28 @@ def dashboard(request):
         day += timedelta(days=1)
 
     items = []
-    for product in company.products.all():
+    catalogue_products = company.products.filter(catalogue=catalogue)
+    for product in catalogue_products:
         items.append({"product": product, "units": round(by_item[product.id])})
     items.sort(key=lambda item: item["units"], reverse=True)
-    first_sale = Sale.objects.filter(product__company=company).order_by("date").values_list("date", flat=True).first()
-    last_sale = Sale.objects.filter(product__company=company).order_by("-date").values_list("date", flat=True).first()
+    first_sale = Sale.objects.filter(product__company=company, product__catalogue=catalogue).order_by("date").values_list("date", flat=True).first()
+    last_sale = Sale.objects.filter(product__company=company, product__catalogue=catalogue).order_by("-date").values_list("date", flat=True).first()
 
     context.update(
         {
             "upcoming": list(
-                company.events.filter(end_date__gte=today, start_date__lt=horizon)
+                company.events.filter(
+                    catalogue=catalogue, end_date__gte=today, start_date__lt=horizon
+                )
                 .exclude(event_type="payday")
                 .order_by("start_date")[:6]
             ),
             "items": items,
             "major": company.events.filter(
-                event_type="major", end_date__gte=today, start_date__lt=horizon
+                catalogue=catalogue,
+                event_type="major",
+                end_date__gte=today,
+                start_date__lt=horizon,
             ).order_by("start_date").first(),
             "first_sale": first_sale,
             "last_sale": last_sale,
@@ -300,9 +325,10 @@ def dashboard(request):
             "calendar_mape": calendar_mape,
         }
     )
-    rows = _sorted_plans(company.products.all(), run, today) if run else []
+    rows = _sorted_plans(catalogue_products, run, today) if run else []
     context["rows"] = rows
     context["expanded"] = rows[0] if rows else None
+    context["others"] = rows[1:] if rows else []
     context["tab"] = "forecast"
     if rows:
         context["chart"] = _story_chart(rows[0]["product"], run, today)
@@ -311,13 +337,28 @@ def dashboard(request):
 
 @login_required
 def product_detail(request, pk):
+    return _render_product(request, pk, "nara")
+
+
+@login_required
+def real_product(request, pk):
+    return _render_product(request, pk, "real")
+
+
+def _render_product(request, pk, catalogue):
     company = request.user.company
-    product = get_object_or_404(Product, pk=pk, company=company)
-    run = company.forecast_runs.first()
-    today = timezone.localdate()
+    product = get_object_or_404(Product, pk=pk, company=company, catalogue=catalogue)
+    run = company.forecast_runs.filter(catalogue=catalogue).first()
+    today = run.as_of if run and run.as_of else timezone.localdate()
     plan = _plan_for(product, run, today) if run else None
     chart = _story_chart(product, run, today)
-    rows = _sorted_plans(company.products.all(), run, today) if run else []
+    others = []
+    if run:
+        others = [
+            row
+            for row in _sorted_plans(company.products.filter(catalogue=catalogue), run, today)
+            if row["product"].pk != product.pk
+        ]
     return render(
         request,
         "planner/product.html",
@@ -326,9 +367,12 @@ def product_detail(request, pk):
             "run": run,
             "plan": plan,
             "expanded": plan,
-            "rows": rows,
+            "others": others,
             "tab": request.GET.get("tab", "forecast"),
             "chart": chart,
+            "shop": catalogue,
+            "currency": "$" if catalogue == "real" else "₹",
+            "date_fmt": "j M Y" if catalogue == "real" else "j M",
             "stock_form": StockForm(
                 initial={"on_hand": product.on_hand, "lead_time_days": product.lead_time_days}
             ),
@@ -344,11 +388,12 @@ def update_stock(request, pk):
         product.on_hand = form.cleaned_data["on_hand"]
         product.lead_time_days = form.cleaned_data["lead_time_days"]
         product.save(update_fields=["on_hand", "lead_time_days"])
-        run = request.user.company.forecast_runs.first()
+        run = request.user.company.forecast_runs.filter(catalogue=product.catalogue).first()
         if run:
             refresh_recommendation(product, run)
         messages.success(request, "Stock and lead time updated. The order suggestion uses the new numbers.")
-    return redirect(f"/products/{product.pk}/?tab=details#item-{product.pk}")
+    target = "real_product" if product.catalogue == "real" else "product"
+    return redirect(target, pk=product.pk)
 
 
 @login_required
@@ -359,7 +404,8 @@ def accept_recommendation(request, pk):
     recommendation.status = Recommendation.ACCEPTED
     recommendation.save(update_fields=["status"])
     messages.success(request, f"Marked the {recommendation.product.name} order as accepted.")
-    return redirect(f"/products/{recommendation.product_id}/#item-{recommendation.product_id}")
+    target = "real_product" if recommendation.product.catalogue == "real" else "product"
+    return redirect(target, pk=recommendation.product_id)
 
 
 @login_required
@@ -378,10 +424,12 @@ def calendar_page(request):
         messages.success(request, "Event added. Rebuild the forecast so the new date is included.")
         return redirect("calendar")
     today = timezone.localdate()
-    events = company.events.filter(end_date__gte=today - timedelta(days=45)).exclude(
+    events = company.events.filter(catalogue="nara", end_date__gte=today).exclude(
         event_type="payday"
-    )
-    paydays = company.events.filter(event_type="payday", end_date__gte=today).count()
+    ).order_by("start_date")
+    paydays = company.events.filter(
+        catalogue="nara", event_type="payday", end_date__gte=today
+    ).count()
     return render(
         request,
         "planner/calendar.html",
@@ -392,9 +440,9 @@ def calendar_page(request):
 @login_required
 def data_page(request):
     company = request.user.company
-    sales = Sale.objects.filter(product__company=company)
+    sales = Sale.objects.filter(product__company=company, product__catalogue="nara")
     span = sales.aggregate(first=Min("date"), last=Max("date"), units=Sum("quantity"))
-    catalogue = company.products.annotate(
+    catalogue = company.products.filter(catalogue="nara").annotate(
         sold=Sum("sales__quantity"),
         first_sale=Min("sales__date"),
         last_sale=Max("sales__date"),
@@ -404,8 +452,8 @@ def data_page(request):
         "planner/data.html",
         {
             "form": UploadForm(),
-            "run": company.forecast_runs.first(),
-            "product_count": company.products.count(),
+            "run": company.forecast_runs.filter(catalogue="nara").first(),
+            "product_count": company.products.filter(catalogue="nara").count(),
             "sale_count": sales.count(),
             "span": span,
             "catalogue": catalogue,
@@ -442,6 +490,20 @@ def load_demo_view(request):
     load_demo(company)
     messages.success(request, "Nara Studio is loaded from Shopify sales, with a forecast ready.")
     return redirect("dashboard")
+
+
+@login_required
+@login_required
+def load_real_view(request):
+    if request.method != "POST":
+        return redirect("real_dashboard")
+    try:
+        load_real(request.user.company)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("real_dashboard")
+    messages.success(request, "Iowa bottle sales are loaded. Nara Studio was left as it was.")
+    return redirect("real_dashboard")
 
 
 @login_required

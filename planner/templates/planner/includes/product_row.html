@@ -1,14 +1,14 @@
 {% load humanize static %}
-<a class="item-row{% if open %} open{% endif %}" id="item-{{ row.product.pk }}" href="{% if open %}{% url 'dashboard' %}#item-{{ row.product.pk }}{% else %}{% url 'product' row.product.pk %}#item-{{ row.product.pk }}{% endif %}">
-  <span class="serial">{{ forloop.counter }}</span>
+<a class="item-row{% if open %} open{% endif %}" href="{% if shop == "real" %}{% if open %}{% url 'real_dashboard' %}{% else %}{% url 'real_product' row.product.pk %}{% endif %}{% else %}{% if open %}{% url 'dashboard' %}{% else %}{% url 'product' row.product.pk %}{% endif %}{% endif %}">
   <span class="thumb">
+    <span class="letter">{{ row.product.name|slice:":1" }}</span>
     {% with "planner/products/"|add:row.product.sku|lower|add:".jpg" as photo %}
-      <img src="{% static photo %}" alt="{{ row.product.name }}">
+      <img src="{% static photo %}" alt="{{ row.product.name }}" onerror="this.remove()">
     {% endwith %}
   </span>
   <span class="item-name">
     <strong>{{ row.product.name }}</strong>
-    <small>{{ row.product.category }} · Online store</small>
+    <small>{{ row.product.category }} · {% if shop == "real" %}Iowa liquor sales{% else %}Online store{% endif %}</small>
   </span>
   <span class="item-stat">
     <b>{{ row.product.on_hand }} available</b>
@@ -17,7 +17,7 @@
   <span class="item-stat">
     {% if row.days_left != None %}
       <b>{{ row.days_left }} day{{ row.days_left|pluralize }}</b>
-      <small>{% if row.stockout %}runs out {{ row.stockout|date:"j M" }}{% else %}until it runs out{% endif %}</small>
+      <small>{% if row.stockout %}runs out {{ row.stockout|date:date_fmt }}{% else %}until it runs out{% endif %}</small>
     {% else %}
       <b>Covered</b>
       <small>past the next month</small>
@@ -25,7 +25,7 @@
   </span>
   <span class="item-stat">
     {% if row.recommendation and row.recommendation.order_qty %}
-      <b>{{ row.recommendation.order_by|date:"j M" }}</b>
+      <b>{{ row.recommendation.order_by|date:date_fmt }}</b>
       <small>order by</small>
     {% endif %}
   </span>

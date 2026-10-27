@@ -22,16 +22,25 @@
       <nav>
         <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" or request.resolver_match.url_name == "product" %}class="active"{% endif %}>Forecasting</a>
         <a href="{% url 'calendar' %}" {% if request.resolver_match.url_name == "calendar" %}class="active"{% endif %}>Holidays</a>
+        <a href="{% url 'real_dashboard' %}" {% if request.resolver_match.url_name == "real_dashboard" or request.resolver_match.url_name == "real_product" %}class="active"{% endif %}>Real data</a>
         <a href="{% url 'data' %}" {% if request.resolver_match.url_name == "data" %}class="active"{% endif %}>Sales data</a>
         <a href="{% url 'roadmap' %}" {% if request.resolver_match.url_name == "roadmap" %}class="active"{% endif %}>What's next</a>
       </nav>
       <div class="sidebar-foot">
         <div class="workspace-chip">
+          {% if request.resolver_match.url_name == "real_dashboard" or request.resolver_match.url_name == "real_product" %}
+          <span>U</span>
+          <div>
+            <p>Iowa Liquor Sales</p>
+            <small>Real bottles · Iowa, USA</small>
+          </div>
+          {% else %}
           <span>{{ company.name|slice:":1" }}</span>
           <div>
             <p>{{ company.name }}</p>
             <small>Shopify · {{ company.city }}</small>
           </div>
+          {% endif %}
         </div>
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}

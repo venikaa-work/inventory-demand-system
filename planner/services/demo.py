@@ -47,7 +47,10 @@ def demo_event_rows():
         ("October festive drop", "2026-10-03", "2026-10-08", CalendarEvent.PROMOTION, "In the recent check window"),
         ("Dussehra", "2026-10-20", "2026-10-20", CalendarEvent.MAJOR, ""),
         ("Pre-Diwali edit", "2026-10-28", "2026-10-31", CalendarEvent.PROMOTION, "Coming up on the site"),
-        ("Diwali week", "2026-11-01", "2026-11-08", CalendarEvent.MAJOR, "Dresses and tees peak. Orders must ship before this week."),
+        ("Diwali week", "2026-11-01", "2026-11-08", CalendarEvent.MAJOR, ""),
+        ("Bhai Dooj", "2026-11-11", "2026-11-11", CalendarEvent.HOLIDAY, ""),
+        ("Chhath Puja", "2026-11-15", "2026-11-16", CalendarEvent.HOLIDAY, ""),
+        ("Guru Nanak Jayanti", "2026-11-24", "2026-11-24", CalendarEvent.HOLIDAY, ""),
         ("Christmas", "2026-12-25", "2026-12-25", CalendarEvent.HOLIDAY, ""),
     ]
     rows = [
@@ -113,9 +116,9 @@ def load_demo(company, today=None):
     event_objects = [_Event(row) for row in event_rows]
 
     with transaction.atomic():
-        company.forecast_runs.all().delete()
-        company.products.all().delete()
-        company.events.all().delete()
+        company.forecast_runs.filter(catalogue="nara").delete()
+        company.products.filter(catalogue="nara").delete()
+        company.events.filter(catalogue="nara").delete()
         CalendarEvent.objects.bulk_create(
             [CalendarEvent(company=company, **row) for row in event_rows]
         )

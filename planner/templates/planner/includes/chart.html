@@ -8,7 +8,7 @@
   const datasets = [];
   if (payload.mode === "story") {
     datasets.push({
-      label: "Past 90 days",
+      label: payload.actualLabel || "Past 90 days",
       data: payload.actual,
       borderColor: "#2457d6",
       backgroundColor: "rgba(36, 87, 214, 0.12)",
@@ -19,7 +19,7 @@
       spanGaps: false,
     });
     datasets.push({
-      label: "Next 30 days",
+      label: payload.forecastLabel || "Next 30 days",
       data: payload.forecast,
       borderColor: "#7c3aed",
       borderDash: [4, 5],

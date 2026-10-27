@@ -245,13 +245,13 @@ def _error_row(actual_by_day, predicted_by_day, only_days=None):
     return mae, rmse, mape(pairs)
 
 
-def rebuild_forecast(company, today=None):
+def rebuild_forecast(company, today=None, catalogue="nara"):
     from planner.services.model_suite import MODEL_NAMES, predict_window
 
     today = today or timezone.localdate()
     yesterday = today - timedelta(days=1)
-    products = list(company.products.all())
-    events = list(company.events.all())
+    products = list(company.products.filter(catalogue=catalogue))
+    events = list(company.events.filter(catalogue=catalogue))
     if not products:
         raise ValueError("Add at least one product with sales before running a forecast.")
 
@@ -308,9 +308,11 @@ def rebuild_forecast(company, today=None):
     point_rows = []
     recommendation_rows = []
     with transaction.atomic():
-        company.forecast_runs.all().delete()
+        company.forecast_runs.filter(catalogue=catalogue).delete()
         run = ForecastRun.objects.create(
             company=company,
+            catalogue=catalogue,
+            as_of=today,
             horizon_days=HORIZON_DAYS,
             holdout_days=HOLDOUT_DAYS,
             chosen_model=chosen,

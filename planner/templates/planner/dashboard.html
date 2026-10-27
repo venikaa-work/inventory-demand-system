@@ -1,11 +1,20 @@
 {% extends "planner/base.html" %}
-{% block title %}Forecasting · Calendra{% endblock %}
+{% block title %}{% if shop == "real" %}Real data{% else %}Forecasting{% endif %} · Calendra{% endblock %}
 {% block content %}
 {% if not expanded %}
   <section class="card empty">
-    <h2>No products yet</h2>
-    <p>Load Nara Studio, or upload a Shopify sales file. The forecast list appears here after that.</p>
-    <a class="primary button-link" href="{% url 'data' %}">Open sales data</a>
+    {% if shop == "real" %}
+      <h2>Real shop not loaded</h2>
+      <p>This loads eight liquor products from Iowa’s public sales file. Nara Studio stays as it is.</p>
+      <form method="post" action="{% url 'load_real' %}">
+        {% csrf_token %}
+        <button class="primary" type="submit">Load the real shop</button>
+      </form>
+    {% else %}
+      <h2>No products yet</h2>
+      <p>Load Nara Studio, or upload a Shopify sales file. The forecast list appears here after that.</p>
+      <a class="primary button-link" href="{% url 'data' %}">Open sales data</a>
+    {% endif %}
   </section>
 {% else %}
   {% include "planner/includes/forecast_board.html" %}

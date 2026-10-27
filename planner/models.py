@@ -16,6 +16,7 @@ class Company(models.Model):
 
 class Product(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="products")
+    catalogue = models.CharField(max_length=16, default="nara")
     sku = models.CharField(max_length=32)
     name = models.CharField(max_length=120)
     category = models.CharField(max_length=80)
@@ -60,6 +61,7 @@ class CalendarEvent(models.Model):
     ]
 
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="events")
+    catalogue = models.CharField(max_length=16, default="nara")
     name = models.CharField(max_length=120)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -77,6 +79,8 @@ class ForecastRun(models.Model):
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, related_name="forecast_runs"
     )
+    catalogue = models.CharField(max_length=16, default="nara")
+    as_of = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     horizon_days = models.PositiveIntegerField(default=56)
     holdout_days = models.PositiveIntegerField(default=28)
@@ -86,6 +90,7 @@ class ForecastRun(models.Model):
     calendar_event_mape = models.FloatField(null=True, blank=True)
     chosen_model = models.CharField(max_length=40, blank=True)
     model_scores = models.JSONField(default=list, blank=True)
+    comparison = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

@@ -1,38 +1,25 @@
 {% extends "planner/base.html" %}
 {% block title %}What's next · Calendra{% endblock %}
 {% block content %}
-<header class="page-head">
-  <div>
-    <p class="eyebrow">For the check-in, not the final submission</p>
-    <h1>What this is, and what is still left</h1>
-  </div>
-</header>
-
-<section class="card panel">
-  <h2>The aim</h2>
-  <p>A shop owner uploads daily sales. The software forecasts how many units will sell over the next month, and shows whether holidays change that number. The owner uses it to prepare before a busy week instead of guessing.</p>
-</section>
-
-<section class="split">
-  <article class="card">
-    <h2>Ready to show now</h2>
-    <ul class="plain-list">
-      <li>Sign in and open a demo shop, or upload a CSV or Excel file.</li>
-      <li>A file can be one number for the whole shop: date and units sold.</li>
-      <li>A file can also name each item. The first screen still shows the shop total, then the split.</li>
-      <li>Holidays and the shop’s own sales sit on a calendar.</li>
-      <li>Four models guess the next month: a weekday average, Holt-Winters, ridge regression, and XGBoost.</li>
-      <li>The last month is hidden and scored with MAE, RMSE, and MAPE. The screen uses the model that missed the least.</li>
-    </ul>
-  </article>
-  <article class="card">
-    <h2>Still to build</h2>
-    <ul class="plain-list">
-      <li>Add a deep-learning comparison, such as LSTM, on the same hidden month. It stays off this check-in because a short shop history is easy for it to memorize.</li>
-      <li>Prefer two or three years of history when a shop has it, so each festival has been seen more than once.</li>
-      <li>Turn the forecast into an order: how many of each item to buy, and the last date to place that order.</li>
-      <li>Write the research paper around this test, not around a graph that only looks perfect on the training data.</li>
-    </ul>
+<section class="board">
+  <p class="crumb">Tools <span>›</span> What's next</p>
+  <header class="sheet cal-head">
+    <div>
+      <h1>Still to build</h1>
+      <p class="lede">This screen is the prototype. The forecast and the reorder are running on Nara Studio. These are the next pieces.</p>
+    </div>
+  </header>
+  <article class="sheet cal-list">
+    <ol class="plain-list next-points">
+      <li>
+        <strong>Live sync with Shopify.</strong>
+        The owner connects the store once. New orders, stock changes, and new listings update this forecast without a file upload.
+      </li>
+      <li>
+        <strong>One count across platforms.</strong>
+        The same piece can sell on Shopify, Etsy, and Amazon. Those sales add together, and the available stock is one number, so the reorder is for the real total.
+      </li>
+    </ol>
   </article>
 </section>
 {% endblock %}

@@ -4,3 +4,5 @@ __pycache__/
 db.sqlite3
 .DS_Store
 .env
+sample_data/online_retail.zip
+sample_data/Online Retail.xlsx
