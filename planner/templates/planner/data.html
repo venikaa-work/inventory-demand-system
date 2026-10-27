@@ -1,52 +1,59 @@
 {% extends "planner/base.html" %}
 {% load humanize %}
-{% block title %}Upload · Calendra{% endblock %}
+{% block title %}Sales data · Calendra{% endblock %}
 {% block content %}
-<header class="page-head">
-  <div>
-    <p class="eyebrow">Step 1 · The file</p>
-    <h1>Where the Shopify sales come in</h1>
-  </div>
-</header>
+<section class="board">
+  <p class="crumb">Tools <span>›</span> Sales data</p>
+  <header class="sheet cal-head">
+    <div>
+      <p class="region">Shopify · connected</p>
+      <h1>{{ company.name }}</h1>
+      <p class="lede">Orders and stock are read from this store’s Shopify. A sale on any listing reduces the available count. A new listing shows up here as a product.</p>
+    </div>
+  </header>
 
-<p class="lede">Nara Studio sells clothes on Shopify. Each order becomes a sale: the date, the piece, and how many units. Stock on Shopify is the “available” number on Forecasting.</p>
+  <section class="stat-grid three">
+    <article class="card stat"><p>Products</p><strong>{{ product_count }}</strong></article>
+    <article class="card stat"><p>Daily sales rows</p><strong>{{ sale_count|intcomma }}</strong></article>
+    <article class="card stat">
+      <p>History in this sync</p>
+      <strong>{% if span.first %}{{ span.first|date:"j M Y" }}{% else %}—{% endif %}</strong>
+      <span>{% if span.last %}through {{ span.last|date:"j M Y" }}{% endif %}</span>
+    </article>
+  </section>
 
-<section class="stat-grid three">
-  <article class="card stat"><p>Items in the file</p><strong>{{ product_count }}</strong></article>
-  <article class="card stat"><p>Days of sales</p><strong>{{ sale_count|intcomma }}</strong></article>
-  <article class="card stat">
-    <p>Forecast last built</p>
-    <strong>{% if run %}{{ run.created_at|date:"j M, P" }}{% else %}Not yet{% endif %}</strong>
+  <article class="sheet cal-list">
+    <h2>What Shopify has sent</h2>
+    <p class="lede">The forecast is trained on every day below, not only the 90 days drawn on the chart.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Product</th><th>Units sold</th><th>From</th><th>Through</th><th>On hand now</th></tr>
+        </thead>
+        <tbody>
+          {% for product in catalogue %}
+            <tr>
+              <td>{{ product.name }}<small>{{ product.category }}</small></td>
+              <td>{{ product.sold|default:0|intcomma }}</td>
+              <td>{{ product.first_sale|date:"j M Y" }}</td>
+              <td>{{ product.last_sale|date:"j M Y" }}</td>
+              <td>{{ product.on_hand }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">No products synced yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </article>
-</section>
 
-<section class="split">
-  <article class="card">
-    <h2>Reload Nara Studio</h2>
-    <p class="lede">This loads the clothing catalogue as it stands on Shopify: tees, dresses, and bags, with daily sales since January 2025. Diwali week is already on the calendar.</p>
+  <article class="sheet cal-form">
+    <h2>Reload this Shopify store</h2>
+    <p class="lede">Puts Nara Studio back to the synced catalogue: ten clothing pieces, daily sales since January 2025, India holidays on the calendar.</p>
     <form method="post" action="{% url 'load_demo' %}" onsubmit="return confirm('Replace the current catalogue with Nara Studio?');">
       {% csrf_token %}
-      <button class="primary" type="submit">Load Nara Studio</button>
+      <button class="primary" type="submit">Reload from Shopify</button>
     </form>
-  </article>
-  <article class="card">
-    <h2>Or upload Excel / CSV</h2>
-    <p class="lede">Required: <code>date</code> and <code>total_sales</code> (or <code>quantity</code>). Optional: <code>product</code> or <code>sku</code>, if the shop tracks items separately. After the upload, open Forecasting.</p>
-    <form method="post" action="{% url 'upload' %}" enctype="multipart/form-data">
-      {% csrf_token %}
-      {% for field in form %}
-        <label>
-          <span>{{ field.label }}</span>
-          {{ field }}
-        </label>
-      {% endfor %}
-      <button class="secondary" type="submit">Upload file</button>
-    </form>
-    <form method="post" action="{% url 'run_forecast' %}">
-      {% csrf_token %}
-      <button class="secondary" type="submit">Rebuild the forecast</button>
-    </form>
-    <p class="muted">A whole-shop example is <code>sample_data/shop_total_template.csv</code>. An item-by-item example is <code>sample_data/sales_template.csv</code>.</p>
   </article>
 </section>
 {% endblock %}

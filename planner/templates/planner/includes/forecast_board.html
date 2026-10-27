@@ -1,131 +1,130 @@
 {% load humanize %}
 <section class="board">
   <p class="crumb">Tools <span>›</span> Forecasting</p>
-  {% if expanded %}
+  {% for row in rows %}
     <article class="sheet">
-      {% include "planner/includes/product_row.html" with row=expanded open=True %}
-      <div class="sheet-body">
-        <nav class="tabs">
-          <a href="{% url 'product' expanded.product.pk %}" {% if tab != "calculation" and tab != "details" %}class="active"{% endif %}>Forecast</a>
-          <a href="{% url 'product' expanded.product.pk %}?tab=calculation" {% if tab == "calculation" %}class="active"{% endif %}>Calculation</a>
-          <a href="{% url 'product' expanded.product.pk %}?tab=details" {% if tab == "details" %}class="active"{% endif %}>Details</a>
-        </nav>
+      {% if expanded and row.product.pk == expanded.product.pk %}
+        {% include "planner/includes/product_row.html" with row=row open=True %}
+        <div class="sheet-body">
+          <nav class="tabs">
+            <a href="{% url 'product' expanded.product.pk %}#item-{{ expanded.product.pk }}" {% if tab != "calculation" and tab != "details" %}class="active"{% endif %}>Forecast</a>
+            <a href="{% url 'product' expanded.product.pk %}?tab=calculation#item-{{ expanded.product.pk }}" {% if tab == "calculation" %}class="active"{% endif %}>Calculation</a>
+            <a href="{% url 'product' expanded.product.pk %}?tab=details#item-{{ expanded.product.pk }}" {% if tab == "details" %}class="active"{% endif %}>Details</a>
+          </nav>
 
-        {% if tab == "calculation" %}
-          <div class="calc">
-            <h2>How the next 30 days were guessed</h2>
-            <p>The last 28 days were hidden. Four models had to guess them. <strong>{{ run.chosen_model }}</strong> missed the least, so expected sales use that model. Holidays on the calendar are part of the guess.</p>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Model</th><th>Average miss per day</th></tr></thead>
-                <tbody>
-                  {% for row in run.model_scores %}
-                    <tr>
-                      <td>{{ row.name }}{% if row.chosen %} · used{% endif %}</td>
-                      <td>{{ row.mae|floatformat:0 }} units</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+          {% if tab == "calculation" %}
+            <div class="calc">
+              <h2>Which guess was closest</h2>
+              <p>The last 28 days were hidden. Each model had to guess them from the earlier sales. <strong>{{ run.chosen_model }}</strong> missed the least, so the chart uses that one. Holiday flags are part of Ridge and XGBoost.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Model</th><th>What it looks at</th><th>Average miss per day</th></tr></thead>
+                  <tbody>
+                    {% for score in run.model_scores %}
+                      <tr>
+                        <td>{{ score.name }}{% if score.chosen %} · used{% endif %}</td>
+                        <td>
+                          {% if score.name == "Weekday average" %}The same weekday in the past. No holidays.
+                          {% elif score.name == "Holt-Winters" %}The weekly rise and fall. No holidays.
+                          {% elif score.name == "Ridge regression" %}Recent sales, the weekday, and the holiday flags.
+                          {% elif score.name == "XGBoost" %}The same clues as Ridge, split across small trees.
+                          {% endif %}
+                        </td>
+                        <td>{{ score.mae|floatformat:0 }} units</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <p class="muted">A deep-learning model is not used on this check-in. With one or two years of daily sales it often copies the past. It can be added later and scored on this same hidden month.</p>
             </div>
-            <p class="muted">A deep-learning model is not used here. On one or two years of daily sales it often copies the past instead of learning it.</p>
-          </div>
-        {% elif tab == "details" and stock_form %}
-          <div class="calc">
-            <h2>Stock and supplier time</h2>
-            <p class="lede">Change what is on the shelf, or how many days the supplier takes. The reorder updates from the same forecast.</p>
-            <form method="post" action="{% url 'update_stock' expanded.product.pk %}">
-              {% csrf_token %}
-              {% for field in stock_form %}
-                <label><span>{{ field.label }}</span>{{ field }}</label>
-              {% endfor %}
-              <button class="secondary" type="submit">Update the reorder</button>
-            </form>
-          </div>
-        {% else %}
-          <div class="forecast-grid">
-            <div class="forecast-main">
-              <div class="forecast-kpis">
-                <div>
-                  <p>In stock now</p>
-                  <strong>{{ expanded.product.on_hand }}</strong>
+          {% elif tab == "details" and stock_form %}
+            <div class="calc">
+              <h2>Stock and supplier time</h2>
+              <p class="lede">Shopify is the usual source. Use this when the shelf count or the maker’s time needs a correction. The reorder updates from the same forecast.</p>
+              <form class="detail-form" method="post" action="{% url 'update_stock' expanded.product.pk %}">
+                {% csrf_token %}
+                {% for field in stock_form %}
+                  <label><span>{{ field.label }}</span>{{ field }}</label>
+                {% endfor %}
+                <button class="secondary" type="submit">Update the reorder</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="forecast-grid">
+              <div class="forecast-main">
+                <div class="forecast-kpis">
+                  <div>
+                    <p>In stock now</p>
+                    <strong>{{ expanded.product.on_hand }}</strong>
+                    <span>units</span>
+                  </div>
+                  <div>
+                    <p>Days left</p>
+                    <strong>{% if expanded.days_left != None %}{{ expanded.days_left }}{% else %}30+{% endif %}</strong>
+                    <span>until the {{ expanded.product.on_hand }} on hand run out</span>
+                  </div>
+                  <div>
+                    <p>Expected sales · 30 days</p>
+                    <strong class="good">{{ expanded.expected|intcomma }}</strong>
+                    <span>units{% if expanded.change != None %} · {% if expanded.change > 0 %}+{% endif %}{{ expanded.change }}% vs last 30 days{% endif %}</span>
+                  </div>
+                </div>
+                {% include "planner/includes/chart.html" %}
+                <p class="legend-note"><span class="swatch past"></span> Past 90 days <span class="swatch next"></span> Next 30 days</p>
+              </div>
+              <aside class="restock">
+                {% if expanded.recommendation %}
+                <div class="restock-top">
+                  <h2>Restock plan</h2>
+                  <p>By {{ expanded.recommendation.order_by|date:"j M" }}</p>
+                </div>
+                <p class="supplier">{{ expanded.product.category }} · {{ expanded.product.lead_time_days }}-day delivery</p>
+                <p class="order-label">Units to order</p>
+                <div class="units-box">
+                  <strong>{{ expanded.recommendation.order_qty }}</strong>
                   <span>units</span>
                 </div>
-                <div>
-                  <p>Days left</p>
-                  <strong>{% if expanded.days_left != None %}{{ expanded.days_left }}{% else %}30+{% endif %}</strong>
-                  <span>until the {{ expanded.product.on_hand }} on hand run out</span>
-                </div>
-                <div>
-                  <p>Expected sales · 30 days</p>
-                  <strong class="good">{{ expanded.expected|intcomma }}</strong>
-                  <span>units{% if expanded.change != None %} · {% if expanded.change > 0 %}+{% endif %}{{ expanded.change }}% vs last 30 days{% endif %}</span>
-                </div>
-              </div>
-              {% include "planner/includes/chart.html" %}
-              <p class="legend-note"><span class="swatch past"></span> Past 90 days <span class="swatch next"></span> Next 30 days</p>
-            </div>
-            <aside class="restock">
-              {% if expanded.recommendation %}
-              <div class="restock-top">
-                <h2>Restock plan</h2>
-                <p>By {{ expanded.recommendation.order_by|date:"j M" }}</p>
-              </div>
-              <p class="supplier">{{ expanded.product.category }} · {{ expanded.product.lead_time_days }}-day delivery</p>
-              <p class="order-label">Units to order</p>
-              <div class="units-box">
-                <strong>{{ expanded.recommendation.order_qty }}</strong>
-                <span>units</span>
-              </div>
-              {% if expanded.recommendation.order_qty %}
-                <p class="hint">The {{ expanded.product.on_hand }} run out on {{ expanded.stockout|date:"j M" }}. This box arrives on {{ expanded.arrival|date:"j M" }}.{% if expanded.gap_missed %} About {{ expanded.gap_missed }} sales are missed in between. A bigger order today still arrives on {{ expanded.arrival|date:"j M" }}. The date that would have avoided the hole was {{ expanded.order_in_time|date:"j M" }}.{% endif %}</p>
-                {% if expanded.covers_until %}
-                  <p class="hint">These {{ expanded.recommendation.order_qty }} last until {{ expanded.covers_until|date:"j M" }}. Place the next order by {{ expanded.next_order_by|date:"j M" }}.</p>
+                {% if expanded.recommendation.order_qty %}
+                  <ul class="plan-points">
+                    <li>{{ expanded.product.on_hand }} run out on {{ expanded.stockout|date:"j M" }}</li>
+                    <li>This box arrives on {{ expanded.arrival|date:"j M" }}</li>
+                    {% if expanded.gap_missed %}
+                      <li>{{ expanded.gap_missed }} sales missed before it arrives</li>
+                      <li>Ordering earlier, by {{ expanded.order_in_time|date:"j M" }}, would have avoided that</li>
+                    {% endif %}
+                    {% if expanded.covers_until %}
+                      <li>These {{ expanded.recommendation.order_qty }} last until {{ expanded.covers_until|date:"j M" }}</li>
+                      <li>Next order by {{ expanded.next_order_by|date:"j M" }}</li>
+                    {% endif %}
+                  </ul>
                 {% endif %}
-              {% endif %}
-              <div class="cover">
-                <div class="cover-track">
-                  <span class="cover-stock" style="width: {{ expanded.bar_stock }}%"></span>
-                  <span class="cover-order" style="width: {{ expanded.bar_order }}%"></span>
-                  <i class="cover-demand" style="left: {{ expanded.bar_demand }}%"></i>
+                <div class="money">
+                  <div><p>Purchase cost</p><strong>₹{{ expanded.recommendation.order_value|floatformat:0|intcomma }}</strong></div>
+                  <div><p>Potential sales</p><strong>₹{{ expanded.potential|floatformat:0|intcomma }}</strong></div>
                 </div>
-                <span class="cover-total">{{ expanded.planned }} units</span>
-              </div>
-              <ul class="cover-key">
-                <li><i class="k stock"></i> In stock</li>
-                <li><i class="k order"></i> Order</li>
-                <li><i class="k demand"></i> Demand</li>
-              </ul>
-              <p class="hint">Grey is what Shopify has now. Purple is this order. The black mark is the {{ expanded.expected }} expected this month.</p>
-              <div class="money">
-                <div><p>Purchase cost</p><strong>₹{{ expanded.recommendation.order_value|floatformat:0|intcomma }}</strong></div>
-                <div><p>Potential sales</p><strong>₹{{ expanded.potential|floatformat:0|intcomma }}</strong></div>
-              </div>
-              <p class="hint">Up to {{ expanded.expected }} units × ₹{{ expanded.price|floatformat:0 }} selling price. This is sales value, not profit.</p>
-              {% if expanded.recommendation.status == "accepted" %}
-                <p class="added">Added to the plan</p>
-              {% elif expanded.recommendation.order_qty %}
-                <form method="post" action="{% url 'accept' expanded.recommendation.pk %}">
-                  {% csrf_token %}
-                  <button class="commit" type="submit">Add {{ expanded.recommendation.order_qty }} to the plan</button>
-                </form>
-              {% else %}
-                <p class="added quiet">No order is needed. Stock covers the next month.</p>
-              {% endif %}
-              {% else %}
-                <h2>Restock plan</h2>
-                <p>No reorder has been calculated for this product yet.</p>
-              {% endif %}
-            </aside>
-          </div>
-        {% endif %}
-      </div>
-    </article>
-  {% endif %}
-
-  {% for row in others %}
-    <article class="sheet">
-      {% include "planner/includes/product_row.html" with row=row open=False %}
+                <p class="hint">{{ expanded.expected }} expected this month × ₹{{ expanded.price|floatformat:0 }}. Sales, not profit.</p>
+                {% if expanded.recommendation.status == "accepted" %}
+                  <p class="added">Added to the plan</p>
+                {% elif expanded.recommendation.order_qty %}
+                  <form method="post" action="{% url 'accept' expanded.recommendation.pk %}">
+                    {% csrf_token %}
+                    <button class="commit" type="submit">Add {{ expanded.recommendation.order_qty }} to the plan</button>
+                  </form>
+                {% else %}
+                  <p class="added quiet">No order is needed. Stock covers the next month.</p>
+                {% endif %}
+                {% else %}
+                  <h2>Restock plan</h2>
+                  <p>No reorder has been calculated for this product yet.</p>
+                {% endif %}
+              </aside>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        {% include "planner/includes/product_row.html" with row=row open=False %}
+      {% endif %}
     </article>
   {% endfor %}
 

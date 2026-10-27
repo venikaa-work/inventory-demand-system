@@ -1,5 +1,6 @@
 {% load humanize static %}
-<a class="item-row{% if open %} open{% endif %}" href="{% if open %}{% url 'dashboard' %}{% else %}{% url 'product' row.product.pk %}{% endif %}">
+<a class="item-row{% if open %} open{% endif %}" id="item-{{ row.product.pk }}" href="{% if open %}{% url 'dashboard' %}#item-{{ row.product.pk }}{% else %}{% url 'product' row.product.pk %}#item-{{ row.product.pk }}{% endif %}">
+  <span class="serial">{{ forloop.counter }}</span>
   <span class="thumb">
     {% with "planner/products/"|add:row.product.sku|lower|add:".jpg" as photo %}
       <img src="{% static photo %}" alt="{{ row.product.name }}">

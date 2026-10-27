@@ -2,6 +2,8 @@ import math
 from collections import defaultdict
 from datetime import timedelta
 
+from django.db.models import Max, Min, Sum
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -301,7 +303,6 @@ def dashboard(request):
     rows = _sorted_plans(company.products.all(), run, today) if run else []
     context["rows"] = rows
     context["expanded"] = rows[0] if rows else None
-    context["others"] = rows[1:] if rows else []
     context["tab"] = "forecast"
     if rows:
         context["chart"] = _story_chart(rows[0]["product"], run, today)
@@ -316,13 +317,7 @@ def product_detail(request, pk):
     today = timezone.localdate()
     plan = _plan_for(product, run, today) if run else None
     chart = _story_chart(product, run, today)
-    others = []
-    if run:
-        others = [
-            row
-            for row in _sorted_plans(company.products.all(), run, today)
-            if row["product"].pk != product.pk
-        ]
+    rows = _sorted_plans(company.products.all(), run, today) if run else []
     return render(
         request,
         "planner/product.html",
@@ -331,7 +326,7 @@ def product_detail(request, pk):
             "run": run,
             "plan": plan,
             "expanded": plan,
-            "others": others,
+            "rows": rows,
             "tab": request.GET.get("tab", "forecast"),
             "chart": chart,
             "stock_form": StockForm(
@@ -353,7 +348,7 @@ def update_stock(request, pk):
         if run:
             refresh_recommendation(product, run)
         messages.success(request, "Stock and lead time updated. The order suggestion uses the new numbers.")
-    return redirect("product", pk=product.pk)
+    return redirect(f"/products/{product.pk}/?tab=details#item-{product.pk}")
 
 
 @login_required
@@ -364,7 +359,7 @@ def accept_recommendation(request, pk):
     recommendation.status = Recommendation.ACCEPTED
     recommendation.save(update_fields=["status"])
     messages.success(request, f"Marked the {recommendation.product.name} order as accepted.")
-    return redirect("product", pk=recommendation.product_id)
+    return redirect(f"/products/{recommendation.product_id}/#item-{recommendation.product_id}")
 
 
 @login_required
@@ -397,6 +392,13 @@ def calendar_page(request):
 @login_required
 def data_page(request):
     company = request.user.company
+    sales = Sale.objects.filter(product__company=company)
+    span = sales.aggregate(first=Min("date"), last=Max("date"), units=Sum("quantity"))
+    catalogue = company.products.annotate(
+        sold=Sum("sales__quantity"),
+        first_sale=Min("sales__date"),
+        last_sale=Max("sales__date"),
+    ).order_by("name")
     return render(
         request,
         "planner/data.html",
@@ -404,7 +406,9 @@ def data_page(request):
             "form": UploadForm(),
             "run": company.forecast_runs.first(),
             "product_count": company.products.count(),
-            "sale_count": Sale.objects.filter(product__company=company).count(),
+            "sale_count": sales.count(),
+            "span": span,
+            "catalogue": catalogue,
         },
     )
 

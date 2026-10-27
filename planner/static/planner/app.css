@@ -177,13 +177,15 @@ input, select {
 .sheet {
   background: white; border: 1px solid #eceef1; border-radius: 0.9rem;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); overflow: hidden;
+  scroll-margin-top: 16px;
 }
 .item-row {
   display: grid;
-  grid-template-columns: 48px minmax(180px, 1.5fr) 1fr 0.85fr 0.7fr minmax(150px, auto);
+  grid-template-columns: 1.4rem 48px minmax(160px, 1.45fr) 1fr 0.9fr 0.7fr minmax(140px, auto);
   gap: 0.75rem; align-items: center; padding: 0.95rem 1rem;
   color: inherit; text-decoration: none;
 }
+.serial { color: #9aa1ab; font-size: 0.82rem; font-weight: 650; }
 .item-row:hover { background: #fafafa; text-decoration: none; }
 .thumb {
   width: 44px; height: 44px; border-radius: 0.55rem; background: #f3f0ea;
@@ -222,6 +224,11 @@ input, select {
 .cover-key .stock { background: #d1d5db; }
 .cover-key .order { background: #7c5cbf; }
 .cover-key .demand { background: #111827; width: 2px; height: 0.7rem; }
+.plan-points {
+  margin: 0.7rem 0 0.3rem; padding: 0.75rem 0.9rem 0.75rem 1.35rem;
+  background: #f6f7f8; border-radius: 0.7rem;
+}
+.plan-points li { margin: 0.32rem 0; font-size: 0.9rem; }
 .money { display: flex; justify-content: space-between; gap: 1rem; margin: 0.85rem 0 0.25rem; }
 .money strong { display: block; font-size: 1.2rem; margin-top: 0.12rem; }
 .commit, .added {
@@ -232,9 +239,20 @@ input, select {
 .board-foot { margin: 0.15rem 0.15rem 0; }
 .calc { max-width: 46rem; padding-top: 0.3rem; }
 .chart-wrap { height: 270px; }
+.cal-head, .cal-list, .cal-form { padding: 1.05rem 1.15rem 1.15rem; }
+.cal-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
+.cal-head h1, .cal-list h2, .cal-form h2 { margin-bottom: 0.35rem; }
+.region { margin: 0 0 0.35rem; font-size: 0.82rem; font-weight: 650; color: #374151; }
+.cal-grid { display: grid; grid-template-columns: 1.35fr 0.75fr; gap: 0.7rem; align-items: start; }
+.detail-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.8rem; align-items: end; max-width: 46rem; }
+.detail-form label { margin: 0; }
+.chip.major { background: #111827; color: white; }
+.chip.promotion { background: #e5e7eb; color: #111827; }
+.chip.holiday { background: #f3f4f6; color: #374151; }
+.chip.payday { background: #f3f4f6; color: #374151; }
 
 @media (max-width: 980px) {
-  .shell, .split, .auth, .stat-grid, .stat-grid.three, .forecast-grid, .item-row { grid-template-columns: 1fr; }
+  .shell, .split, .auth, .stat-grid, .stat-grid.three, .forecast-grid, .item-row, .cal-grid, .detail-form { grid-template-columns: 1fr; }
   .sidebar { position: sticky; top: 0; }
   .auth-copy h1, h1 { font-size: 2rem; }
   .sidebar nav { flex-direction: row; flex-wrap: wrap; }
