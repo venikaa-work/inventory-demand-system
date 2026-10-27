@@ -4,7 +4,8 @@
 <header class="page-head">
   <div>
     <p class="eyebrow">Business calendar</p>
-    <h1>Dates that change demand</h1>
+    <h1>Which days are not ordinary days?</h1>
+    <p class="lede">Holidays do not go in the sales file. They go here. The forecast uses this list when it builds next month.</p>
   </div>
   <form method="post" action="{% url 'run_forecast' %}">
     {% csrf_token %}

@@ -7,7 +7,7 @@
   <title>{% block title %}Calendra{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'planner/app.css' %}">
 </head>
 <body>
@@ -16,19 +16,23 @@
     <aside class="sidebar">
       <a class="brand" href="{% url 'dashboard' %}">
         <span class="brand-mark">C</span>
-        <span>
-          <strong>Calendra</strong>
-          <small>Demand planning</small>
-        </span>
+        <strong>Calendra</strong>
       </a>
+      <p class="nav-label">Tools</p>
       <nav>
-        <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" %}class="active"{% endif %}>Overview</a>
-        <a href="{% url 'calendar' %}" {% if request.resolver_match.url_name == "calendar" %}class="active"{% endif %}>Calendar</a>
+        <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" or request.resolver_match.url_name == "product" %}class="active"{% endif %}>Forecasting</a>
+        <a href="{% url 'calendar' %}" {% if request.resolver_match.url_name == "calendar" %}class="active"{% endif %}>Holidays</a>
         <a href="{% url 'data' %}" {% if request.resolver_match.url_name == "data" %}class="active"{% endif %}>Sales data</a>
+        <a href="{% url 'roadmap' %}" {% if request.resolver_match.url_name == "roadmap" %}class="active"{% endif %}>What's next</a>
       </nav>
       <div class="sidebar-foot">
-        <p>{{ company.name }}</p>
-        <p class="muted">{{ user.username }}</p>
+        <div class="workspace-chip">
+          <span>{{ company.name|slice:":1" }}</span>
+          <div>
+            <p>{{ company.name }}</p>
+            <small>Shopify · {{ company.city }}</small>
+          </div>
+        </div>
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}
           <button class="text-button" type="submit">Sign out</button>

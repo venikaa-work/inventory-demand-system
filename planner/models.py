@@ -20,6 +20,7 @@ class Product(models.Model):
     name = models.CharField(max_length=120)
     category = models.CharField(max_length=80)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     lead_time_days = models.PositiveIntegerField(default=7)
     on_hand = models.PositiveIntegerField(default=0)
 
@@ -83,6 +84,8 @@ class ForecastRun(models.Model):
     calendar_mape = models.FloatField(null=True, blank=True)
     plain_event_mape = models.FloatField(null=True, blank=True)
     calendar_event_mape = models.FloatField(null=True, blank=True)
+    chosen_model = models.CharField(max_length=40, blank=True)
+    model_scores = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

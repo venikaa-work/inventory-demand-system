@@ -216,7 +216,38 @@ def _recommendation(product, future_rows, errors, lifts, events, today):
     }
 
 
+def _fill_daily(series):
+    if not series:
+        return []
+    lookup = {day: quantity for day, quantity in series}
+    day = series[0][0]
+    last = series[-1][0]
+    filled = []
+    while day <= last:
+        filled.append((day, float(lookup.get(day, 0))))
+        day += timedelta(days=1)
+    return filled
+
+
+def _error_row(actual_by_day, predicted_by_day, only_days=None):
+    pairs = []
+    absolute = []
+    for day, actual in actual_by_day.items():
+        if only_days is not None and day not in only_days:
+            continue
+        predicted = predicted_by_day[day]
+        pairs.append((actual, predicted))
+        absolute.append(abs(actual - predicted))
+    if not absolute:
+        return None, None, None
+    mae = sum(absolute) / len(absolute)
+    rmse = float(np.sqrt(sum(value ** 2 for value in absolute) / len(absolute)))
+    return mae, rmse, mape(pairs)
+
+
 def rebuild_forecast(company, today=None):
+    from planner.services.model_suite import MODEL_NAMES, predict_window
+
     today = today or timezone.localdate()
     yesterday = today - timedelta(days=1)
     products = list(company.products.all())
@@ -224,89 +255,113 @@ def rebuild_forecast(company, today=None):
     if not products:
         raise ValueError("Add at least one product with sales before running a forecast.")
 
-    pooled_plain = []
-    pooled_calendar = []
-    event_plain = []
-    event_calendar = []
-    point_rows = []
-    recommendation_rows = []
-
-    prepared = []
+    future_dates = [today + timedelta(days=offset) for offset in range(HORIZON_DAYS)]
+    bundles = []
     for product in products:
-        series = [
-            (sale.date, sale.quantity)
-            for sale in product.sales.filter(date__lte=yesterday).order_by("date")
-        ]
-        if len(series) <= HOLDOUT_DAYS + 30:
+        series = _fill_daily(
+            [
+                (sale.date, sale.quantity)
+                for sale in product.sales.filter(date__lte=yesterday).order_by("date")
+            ]
+        )
+        if len(series) <= HOLDOUT_DAYS + 40:
             continue
         train = series[:-HOLDOUT_DAYS]
         holdout = series[-HOLDOUT_DAYS:]
-        plain_model = fit_plain(train)
-        lifts = learn_lifts(train, events, plain_model)
-        full_plain = fit_plain(series)
-        full_lifts = learn_lifts(series, events, full_plain)
-        prepared.append((product, holdout, plain_model, lifts, full_plain, full_lifts))
+        hold_dates = [day for day, _ in holdout]
+        bundles.append(
+            {
+                "product": product,
+                "holdout": holdout,
+                "hold_preds": predict_window(train, hold_dates, events),
+                "future_preds": predict_window(series, future_dates, events),
+                "lifts": learn_lifts(series, events, fit_plain(series)),
+            }
+        )
 
-    if not prepared:
+    if not bundles:
         raise ValueError("Each product needs more than two months of daily sales.")
 
+    actual_by_day = {}
+    predicted_by_model = {name: {} for name in MODEL_NAMES}
+    event_days = set()
+    for bundle in bundles:
+        for index, (day, actual) in enumerate(bundle["holdout"]):
+            actual_by_day[day] = actual_by_day.get(day, 0.0) + actual
+            if is_event_day(day_features(day, events)):
+                event_days.add(day)
+            for name in MODEL_NAMES:
+                predicted_by_model[name][day] = predicted_by_model[name].get(day, 0.0) + bundle["hold_preds"][name][index]
+
+    scores = []
+    for name in MODEL_NAMES:
+        mae, rmse, score_mape = _error_row(actual_by_day, predicted_by_model[name])
+        scores.append({"name": name, "mae": round(mae, 2), "rmse": round(rmse, 2), "mape": round(score_mape, 2)})
+    chosen = min(scores, key=lambda row: row["mae"])["name"]
+    for row in scores:
+        row["chosen"] = row["name"] == chosen
+    weekday_event_mape = _error_row(actual_by_day, predicted_by_model["Weekday average"], event_days)[2]
+    chosen_event_mape = _error_row(actual_by_day, predicted_by_model[chosen], event_days)[2]
+    weekday_mape = next(row["mape"] for row in scores if row["name"] == "Weekday average")
+    chosen_mape = next(row["mape"] for row in scores if row["name"] == chosen)
+
+    point_rows = []
+    recommendation_rows = []
     with transaction.atomic():
         company.forecast_runs.all().delete()
         run = ForecastRun.objects.create(
-            company=company, horizon_days=HORIZON_DAYS, holdout_days=HOLDOUT_DAYS
+            company=company,
+            horizon_days=HORIZON_DAYS,
+            holdout_days=HOLDOUT_DAYS,
+            chosen_model=chosen,
+            model_scores=scores,
+            plain_mape=weekday_mape,
+            calendar_mape=chosen_mape,
+            plain_event_mape=weekday_event_mape,
+            calendar_event_mape=chosen_event_mape,
         )
-        for product, holdout, plain_model, lifts, full_plain, full_lifts in prepared:
+        for bundle in bundles:
+            product = bundle["product"]
             errors = []
-            for day, actual in holdout:
-                plain_qty = predict_plain(plain_model, day)
-                calendar_qty = predict_calendar(plain_model, lifts, day, events)
-                features = day_features(day, events)
+            for index, (day, actual) in enumerate(bundle["holdout"]):
+                plain_qty = bundle["hold_preds"]["Weekday average"][index]
+                chosen_qty = bundle["hold_preds"][chosen][index]
+                errors.append(chosen_qty - actual)
                 point_rows.append(
                     ForecastPoint(
                         run=run,
                         product=product,
                         date=day,
                         plain_qty=plain_qty,
-                        calendar_qty=calendar_qty,
+                        calendar_qty=chosen_qty,
                         actual_qty=actual,
                         segment=ForecastPoint.HOLDOUT,
                     )
                 )
-                pooled_plain.append((actual, plain_qty))
-                pooled_calendar.append((actual, calendar_qty))
-                errors.append(calendar_qty - actual)
-                if is_event_day(features):
-                    event_plain.append((actual, plain_qty))
-                    event_calendar.append((actual, calendar_qty))
-
             future_rows = []
-            for offset in range(HORIZON_DAYS):
-                day = today + timedelta(days=offset)
-                plain_qty = predict_plain(full_plain, day)
-                calendar_qty = predict_calendar(full_plain, full_lifts, day, events)
-                future_rows.append((day, calendar_qty))
+            for index, day in enumerate(future_dates):
+                plain_qty = bundle["future_preds"]["Weekday average"][index]
+                chosen_qty = bundle["future_preds"][chosen][index]
+                future_rows.append((day, chosen_qty))
                 point_rows.append(
                     ForecastPoint(
                         run=run,
                         product=product,
                         date=day,
                         plain_qty=plain_qty,
-                        calendar_qty=calendar_qty,
+                        calendar_qty=chosen_qty,
                         actual_qty=None,
                         segment=ForecastPoint.FUTURE,
                     )
                 )
-
-            rec = _recommendation(product, future_rows, errors, full_lifts, events, today)
-            recommendation_rows.append(Recommendation(run=run, product=product, status=Recommendation.SUGGESTED, **rec))
-
+            recommendation = _recommendation(
+                product, future_rows, errors, bundle["lifts"], events, today
+            )
+            recommendation_rows.append(
+                Recommendation(run=run, product=product, status=Recommendation.SUGGESTED, **recommendation)
+            )
         ForecastPoint.objects.bulk_create(point_rows, batch_size=1000)
         Recommendation.objects.bulk_create(recommendation_rows)
-        run.plain_mape = mape(pooled_plain)
-        run.calendar_mape = mape(pooled_calendar)
-        run.plain_event_mape = mape(event_plain)
-        run.calendar_event_mape = mape(event_calendar)
-        run.save()
     return run
 
 

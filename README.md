@@ -20,6 +20,8 @@ python manage.py runserver
 
 Open http://127.0.0.1:8000/
 
+On a Mac, XGBoost needs OpenMP: `brew install libomp`.
+
 Demo login: `planner`  
 Password: `CalendraDemo2026`
 
@@ -27,10 +29,9 @@ On Windows, activate the environment with `.venv\Scripts\activate`.
 
 ## What to show
 
-1. Sign in. The overview compares event-day error for the plain model and the calendar model.
-2. The next-30-days chart marks the pre-Diwali sale and Diwali week. The calendar line rises into the festival and the plain line does not.
-3. Open **Diwali gift hamper** or **LED string lights**. The page explains the order quantity, the supplier lead time, and the learned festival lift.
-4. Change units on hand and update the suggestion.
-5. Calendar lists the business dates. Add one event, then rebuild the forecast.
-6. Sales data can reload the demo or accept a CSV / Excel file. A template is in `sample_data/sales_template.csv`.
+1. Sign in. The first page answers one question: how many units will the shop sell in the next 30 days?
+2. Compare the number with holidays to the number without holidays. Diwali week is marked on the chart.
+3. The scores underneath are from a hidden last month (MAE, RMSE, MAPE).
+4. Upload accepts a whole-shop file (`date`, `total_sales`) or a file that also names each item.
+5. What's next lists what is deliberately left for the final submission.
 

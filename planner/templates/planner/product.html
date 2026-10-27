@@ -1,66 +1,12 @@
 {% extends "planner/base.html" %}
-{% load humanize %}
 {% block title %}{{ product.name }} · Calendra{% endblock %}
 {% block content %}
-<header class="page-head">
-  <div>
-    <p class="eyebrow"><a href="{% url 'dashboard' %}">Overview</a> · {{ product.sku }} · {{ product.category }}</p>
-    <h1>{{ product.name }}</h1>
-  </div>
-</header>
-
-{% if not run %}
+{% if not expanded %}
   <section class="card empty">
-    <h2>Forecast this product from the sales page</h2>
-    <a class="primary button-link" href="{% url 'data' %}">Sales data</a>
+    <h2>This product has no forecast yet</h2>
+    <a class="primary button-link" href="{% url 'data' %}">Build it from the sales page</a>
   </section>
 {% else %}
-  <section class="split">
-    <article class="card panel">
-      <div class="panel-head">
-        <h2>History and the next 8 weeks</h2>
-        <p>Actual sales are the dark line. Where the lines split, the calendar is doing the work.</p>
-      </div>
-      {% include "planner/includes/chart.html" %}
-    </article>
-    <aside class="stack">
-      <article class="card reason">
-        <p class="eyebrow">{% if recommendation.urgent %}Order now{% else %}Recommendation{% endif %}</p>
-        <h2>{{ recommendation.order_qty }} units</h2>
-        <p class="price">₹{{ recommendation.order_value|floatformat:0|intcomma }} · by {{ recommendation.order_by|date:"j M Y" }}</p>
-        <p>{{ recommendation.reason }}</p>
-        {% if recommendation.status == "accepted" %}
-          <p class="tag quiet">Accepted</p>
-        {% elif recommendation.order_qty %}
-          <form method="post" action="{% url 'accept' recommendation.pk %}">
-            {% csrf_token %}
-            <button class="primary" type="submit">Accept order</button>
-          </form>
-        {% endif %}
-      </article>
-      <article class="card">
-        <h2>What the calendar learned</h2>
-        <ul class="lifts">
-          <li><span>Peak festival</span><strong>×{{ recommendation.calendar_lifts.major|floatformat:1 }}</strong></li>
-          <li><span>Promotion</span><strong>×{{ recommendation.calendar_lifts.promo|floatformat:1 }}</strong></li>
-          <li><span>Payday</span><strong>×{{ recommendation.calendar_lifts.payday|floatformat:1 }}</strong></li>
-          <li><span>Week after a festival</span><strong>×{{ recommendation.calendar_lifts.post_major|floatformat:1 }}</strong></li>
-        </ul>
-      </article>
-      <article class="card">
-        <h2>Stock the planner is using</h2>
-        <form method="post" action="{% url 'update_stock' product.pk %}">
-          {% csrf_token %}
-          {% for field in stock_form %}
-            <label>
-              <span>{{ field.label }}</span>
-              {{ field }}
-            </label>
-          {% endfor %}
-          <button class="secondary" type="submit">Update suggestion</button>
-        </form>
-      </article>
-    </aside>
-  </section>
+  {% include "planner/includes/forecast_board.html" %}
 {% endif %}
 {% endblock %}

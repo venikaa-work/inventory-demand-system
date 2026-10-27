@@ -16,6 +16,8 @@ HEADER_ALIASES = {
     "quantity": "quantity",
     "qty": "quantity",
     "units": "quantity",
+    "total_sales": "quantity",
+    "sales": "quantity",
     "name": "name",
     "product_name": "name",
     "category": "category",
@@ -56,8 +58,8 @@ def _rows_from_upload(uploaded):
             raise ValueError("The file needs a header row.")
         mapping = {_normalize_header(field): field for field in reader.fieldnames}
         mapping.pop(None, None)
-        if "date" not in mapping or "sku" not in mapping or "quantity" not in mapping:
-            raise ValueError("The file needs date, sku, and quantity columns.")
+        if "date" not in mapping or "quantity" not in mapping:
+            raise ValueError("The file needs a date column and a units column (quantity or total_sales).")
         for raw in reader:
             yield {key: raw.get(source) for key, source in mapping.items()}
         return
@@ -77,8 +79,8 @@ def _rows_from_upload(uploaded):
             key = _normalize_header(cell)
             if key:
                 mapping[key] = index
-        if "date" not in mapping or "sku" not in mapping or "quantity" not in mapping:
-            raise ValueError("The file needs date, sku, and quantity columns.")
+        if "date" not in mapping or "quantity" not in mapping:
+            raise ValueError("The file needs a date column and a units column (quantity or total_sales).")
         for raw in iterator:
             if raw is None or all(cell is None for cell in raw):
                 continue
@@ -94,8 +96,8 @@ def import_sales(company, uploaded):
     skipped = 0
     with transaction.atomic():
         for row in _rows_from_upload(uploaded):
-            sku = str(row.get("sku") or "").strip()
-            if not sku or row.get("date") in (None, "") or row.get("quantity") in (None, ""):
+            sku = str(row.get("sku") or "").strip() or "STORE"
+            if row.get("date") in (None, "") or row.get("quantity") in (None, ""):
                 skipped += 1
                 continue
             try:
@@ -112,7 +114,7 @@ def import_sales(company, uploaded):
                 product = Product.objects.create(
                     company=company,
                     sku=sku,
-                    name=str(row.get("name") or sku).strip() or sku,
+                    name=str(row.get("name") or ("Whole shop" if sku == "STORE" else sku)).strip(),
                     category=str(row.get("category") or "General").strip() or "General",
                     unit_cost=row.get("unit_cost") or 0,
                     lead_time_days=int(row.get("lead_time_days") or 7),
@@ -126,5 +128,5 @@ def import_sales(company, uploaded):
             )
             written_sales += 1
     if written_sales == 0:
-        raise ValueError("No sales rows were imported. Check the date, sku, and quantity columns.")
+        raise ValueError("No sales rows were imported. Check the date and units columns.")
     return {"products": created_products, "sales": written_sales, "skipped": skipped}

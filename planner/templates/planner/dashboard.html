@@ -1,104 +1,13 @@
 {% extends "planner/base.html" %}
-{% load humanize %}
-{% block title %}Overview · Calendra{% endblock %}
+{% block title %}Forecasting · Calendra{% endblock %}
 {% block content %}
-<header class="page-head">
-  <div>
-    <p class="eyebrow">{{ company.city }}</p>
-    <h1>{{ company.name }}</h1>
-  </div>
-  <form method="post" action="{% url 'run_forecast' %}">
-    {% csrf_token %}
-    <button class="primary" type="submit">Rebuild forecast</button>
-  </form>
-</header>
-
-{% if not run %}
+{% if not expanded %}
   <section class="card empty">
-    <h2>No forecast yet</h2>
-    <p>Load the demo retailer, or upload a sales file, then rebuild the forecast.</p>
-    <a class="primary button-link" href="{% url 'data' %}">Go to sales data</a>
+    <h2>No products yet</h2>
+    <p>Load Nara Studio, or upload a Shopify sales file. The forecast list appears here after that.</p>
+    <a class="primary button-link" href="{% url 'data' %}">Open sales data</a>
   </section>
 {% else %}
-  <section class="stat-grid">
-    <article class="card stat">
-      <p>Event-day error, plain model</p>
-      <strong>{{ run.plain_event_mape|floatformat:1 }}%</strong>
-      <span>Last 28 days, festival and promo days only</span>
-    </article>
-    <article class="card stat accent">
-      <p>Event-day error, calendar model</p>
-      <strong>{{ run.calendar_event_mape|floatformat:1 }}%</strong>
-      <span>Same days, with the business calendar</span>
-    </article>
-    <article class="card stat">
-      <p>Products to order now</p>
-      <strong>{{ urgent_count }}</strong>
-      <span>Stockout arrives before the supplier can</span>
-    </article>
-    <article class="card stat">
-      <p>Suggested order value</p>
-      <strong>₹{{ order_value|floatformat:0|intcomma }}</strong>
-      <span>Across every open recommendation</span>
-    </article>
-  </section>
-
-  <section class="card panel">
-    <div class="panel-head">
-      <div>
-        <h2>Next 30 days</h2>
-        <p>The plain line only knows weekday history. The calendar line moves for Diwali, promotions, and the quiet days after a festival.</p>
-      </div>
-    </div>
-    {% if upcoming %}
-      <ul class="chips">
-        {% for event in upcoming %}
-          <li class="chip {{ event.event_type }}">{{ event.name }} · {{ event.start_date|date:"j M" }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-    {% include "planner/includes/chart.html" %}
-  </section>
-
-  <section class="card panel">
-    <div class="panel-head">
-      <h2>Purchase suggestions</h2>
-      <p>Quantity covers the supplier lead time, the next review week, and a safety buffer from recent forecast error.</p>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>On hand</th>
-            <th>Lead time</th>
-            <th>Order</th>
-            <th>Order by</th>
-            <th>Stockout</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in recommendations %}
-            <tr>
-              <td>
-                <a href="{% url 'product' item.product.pk %}">{{ item.product.name }}</a>
-                <small>{{ item.product.sku }}</small>
-              </td>
-              <td>{{ item.product.on_hand }}</td>
-              <td>{{ item.product.lead_time_days }} days</td>
-              <td>{{ item.order_qty }} <small>₹{{ item.order_value|floatformat:0|intcomma }}</small></td>
-              <td>{{ item.order_by|date:"j M Y" }}</td>
-              <td>
-                {% if item.projected_stockout %}{{ item.projected_stockout|date:"j M" }}{% else %}Covered{% endif %}
-                {% if item.urgent %}<em class="tag">Urgent</em>{% endif %}
-              </td>
-              <td><a href="{% url 'product' item.product.pk %}">Open</a></td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+  {% include "planner/includes/forecast_board.html" %}
 {% endif %}
 {% endblock %}

@@ -6,7 +6,29 @@
 <script>
   const payload = JSON.parse(document.getElementById("chart-data").textContent);
   const datasets = [];
-  if (Object.prototype.hasOwnProperty.call(payload, "actual")) {
+  if (payload.mode === "story") {
+    datasets.push({
+      label: "Past 90 days",
+      data: payload.actual,
+      borderColor: "#2457d6",
+      backgroundColor: "rgba(36, 87, 214, 0.12)",
+      fill: true,
+      tension: 0.35,
+      pointRadius: 0,
+      borderWidth: 2.5,
+      spanGaps: false,
+    });
+    datasets.push({
+      label: "Next 30 days",
+      data: payload.forecast,
+      borderColor: "#7c3aed",
+      borderDash: [4, 5],
+      tension: 0.35,
+      pointRadius: 0,
+      borderWidth: 2.5,
+      spanGaps: false,
+    });
+  } else if (Object.prototype.hasOwnProperty.call(payload, "actual")) {
     datasets.push({
       label: "Actual sales",
       data: payload.actual,
@@ -17,35 +39,72 @@
       borderWidth: 2,
       spanGaps: false,
     });
+    datasets.push({
+      label: payload.plainLabel || "Weekday average",
+      data: payload.plain,
+      borderColor: "#b08968",
+      borderDash: [5, 4],
+      tension: 0.25,
+      pointRadius: 0,
+      borderWidth: 2,
+    });
+    datasets.push({
+      label: payload.calendarLabel || "Chosen model",
+      data: payload.calendar,
+      borderColor: "#0e6b5c",
+      tension: 0.25,
+      pointRadius: 0,
+      borderWidth: 2.5,
+    });
   }
-  datasets.push({
-    label: "Plain forecast",
-    data: payload.plain,
-    borderColor: "#b08968",
-    borderDash: [5, 4],
-    tension: 0.25,
-    pointRadius: 0,
-    borderWidth: 2,
-  });
-  datasets.push({
-    label: "Calendar forecast",
-    data: payload.calendar,
-    borderColor: "#0e6b5c",
-    tension: 0.25,
-    pointRadius: 0,
-    borderWidth: 2.5,
-  });
+  const extraPlugins = [];
+  if (payload.mode === "story" && payload.todayIndex != null) {
+    extraPlugins.push({
+      id: "todayLine",
+      afterDatasetsDraw(chart) {
+        const area = chart.chartArea;
+        const x = chart.scales.x.getPixelForValue(payload.todayIndex);
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([2, 4]);
+        ctx.strokeStyle = "#c5c7cc";
+        ctx.moveTo(x, area.top);
+        ctx.lineTo(x, area.bottom);
+        ctx.stroke();
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "12px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Today", x, area.top + 12);
+        ctx.restore();
+      },
+    });
+  }
   new Chart(document.getElementById("demand-chart"), {
     type: "line",
     data: { labels: payload.labels, datasets: datasets },
+    plugins: extraPlugins,
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { family: "Public Sans" } } } },
+      plugins: {
+        legend: {
+          display: payload.mode !== "story",
+          position: "bottom",
+          labels: { boxWidth: 12, font: { family: "Inter, sans-serif" } },
+        },
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { font: { family: "Public Sans" } } },
-        x: { ticks: { maxTicksLimit: 8, font: { family: "Public Sans" } } },
+        y: {
+          beginAtZero: true,
+          grid: { color: "#f0f1f3" },
+          ticks: { font: { family: "Inter, sans-serif" }, color: "#9aa0a6" },
+        },
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 6, font: { family: "Inter, sans-serif" }, color: "#9aa0a6" },
+        },
       },
     },
   });

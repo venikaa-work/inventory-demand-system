@@ -4,7 +4,7 @@ from planner.services.demo import ensure_demo_user
 
 
 class Command(BaseCommand):
-    help = "Create the demo planner login and load Kaveri General Stores."
+    help = "Create the demo planner login and load Nara Studio."
 
     def handle(self, *args, **options):
         user = ensure_demo_user()
